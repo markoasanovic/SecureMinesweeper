@@ -58,7 +58,7 @@ def reveal_tile(board, start_x, start_y, visited):
         or start_x >= len(board)  # Exceeds board's width
         or start_y >= len(board[0])  # Exceeds board's height
         or (start_x, start_y) in visited  # Already visited tile
-        or board[start_x][start_y]["TileRevealed"]  # Tile is already revealed
+        or board[start_y][start_x]["TileRevealed"]  # Tile is already revealed
     ):
         return [], board
 
@@ -78,13 +78,13 @@ def reveal_tile(board, start_x, start_y, visited):
             or x >= len(board)
             or y >= len(board[0])
             or (x, y) in visited
-            or board[x][y]["TileRevealed"]
+            or board[y][x]["TileRevealed"]
         ):
             continue
 
         # Reveal the current tile and add it to the visited set
-        board[x][y]["TileRevealed"] = True
-        bombs_near = board[x][y]["BombsNear"]
+        board[y][x]["TileRevealed"] = True
+        bombs_near = board[y][x]["BombsNear"]
 
         # Add the revealed tile's data to the list of revealed tiles
         revealed_tiles.append({"x": x, "y": y, "value": bombs_near})

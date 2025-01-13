@@ -18,10 +18,18 @@
                         pos-y="{{ y_loop.index0 }}"
                         pos-x="{{ loop.index0 }}"
                     >
-                        {% if cell.TileRevealed and cell.BombsNear > 0 %} {{ cell.BombsNear }} {% endif %}
+                        {% if cell.TileRevealed %}
+                            {% if cell.BombsNear == 0 %}
+                                <!-- Blank for 0 -->
+                            {% elif cell.BombsNear == 9 %}
+                                💣
+                            {% else %}
+                                {{ cell.BombsNear }}
+                            {% endif %}
+                        {% endif %}
                     </div>
                 {% endfor %} 
-                {% endfor %}
+            {% endfor %}
         </div>
     </body>
 </html>

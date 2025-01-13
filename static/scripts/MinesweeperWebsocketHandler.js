@@ -38,7 +38,7 @@ ws.onmessage = (event) => {
 // Function to update the game grid with revealed tiles
 function updateTiles(tiles) {
     tiles.forEach((tile) => {
-        const { y, x, value } = tile;
+        const { x, y, value } = tile;
         // Locate the corresponding tile element on the grid
         const tileElement = document.querySelector(`.grid > div[pos-x='${x}'][pos-y='${y}']`);
         if (tileElement) {
