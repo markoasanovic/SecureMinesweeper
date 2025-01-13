@@ -20,21 +20,28 @@ body {
 .grid div {
     width: 20px;
     height: 20px;
-    background-color: #f0f0f0;
+    background-color: #7b7b7b;
     border-radius: 4px;
 }
+.grid div.revealed {
+    background-color: #262626;
+    color: #ffffff; 
+    cursor: default; 
+    display: flex; 
+    justify-content: center;
+    align-items: center; 
+    font-weight: bold;
+    font-size: 14px;
+    text-align: center;
+    pointer-events: none; 
+}
+
 .grid div:hover {
     background-color: #008cff;
     cursor: pointer;
 }
 
-.revealed {
+.grid div.revealed:hover {
     background-color: #333333;
-    cursor: default;
-    display: flex;
-    justify-content: center; 
-    align-items: center;
-    font-weight: bold;
-    font-size: 14px;
-    text-align: center;
+    cursor: default; 
 }
