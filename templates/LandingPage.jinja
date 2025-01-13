@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Minesweeper</title>
+    <script defer src="https://marko.sh/static/scripts/joinGame.js"></script>
+    <link rel="stylesheet" href="https://marko.sh/static/styles/landingPage.css">
+</head>
+<body>
+    <div class="container">
+        <input type="text" id="gameId" placeholder="Game ID" oninput="validateInput()">
+        <div id="message" class="message">Game ID must be at least 5 characters long.</div>
+        <button id="gameButton" disabled onclick="createOrJoinGame()">Create or Join Game</button>
+    </div>
+</body>
+</html>

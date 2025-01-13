@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" href="https://www.marko.sh/static/styles/MinesweeperGrid.css" />
+        <script defer src="https://www.marko.sh/static/scripts/MinesweeperWebsocketHandler.js"></script>
+        <title>Secure Minesweeper</title>
+    </head>
+    <body>
+        <div class="grid">
+            {% for row in grid %} 
+                {% set y_loop = loop %} 
+                {% for cell in row %}
+                    <div
+                        {% if cell.TileRevealed %} class="revealed" {% endif %}
+                        onclick="RevealTiles({{ loop.index0 }}, {{ y_loop.index0 }})"
+                        pos-y="{{ y_loop.index0 }}"
+                        pos-x="{{ loop.index0 }}"
+                    >
+                        {% if cell.TileRevealed and cell.BombsNear > 0 %} {{ cell.BombsNear }} {% endif %}
+                    </div>
+                {% endfor %} 
+                {% endfor %}
+        </div>
+    </body>
+</html>
