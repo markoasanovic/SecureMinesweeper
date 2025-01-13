@@ -42,7 +42,16 @@ function updateTiles(tiles) {
         // Locate the corresponding tile element on the grid
         const tileElement = document.querySelector(`.grid > div[pos-x='${x}'][pos-y='${y}']`);
         if (tileElement) {
-            tileElement.textContent = value === 0 ? '' : value; // Show number or blank for 0
+            switch (value) {
+                case 0: 
+                    tileElement.textContent = ''; // Show number or blank for 0
+                    break;
+                case 9:
+                    tileElement.textContent = '💣'; // Show bomb for 9
+                    break;
+                default:
+                    tileElement.textContent = value; // Show value
+            }
             tileElement.classList.add('revealed'); // Mark the tile as revealed
         }
     });

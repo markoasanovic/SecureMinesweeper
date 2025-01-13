@@ -30,6 +30,11 @@ body {
 
 .revealed {
     background-color: #333333;
-    color: #000;
     cursor: default;
+    display: flex;
+    justify-content: center; 
+    align-items: center;
+    font-weight: bold;
+    font-size: 14px;
+    text-align: center;
 }
