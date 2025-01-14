@@ -6,9 +6,12 @@ let ws = new WebSocket(`wss://ws.marko.sh/SecureMinesweeper?gameId=${gameId}`);
 
 // Function to send tile click coordinates to the server
 function RevealTiles(x, y) {
+    const tileElement = document.querySelector(`.grid > div[pos-x='${x}'][pos-y='${y}']`);
+    if (tileElement && tileElement.classList.contains('revealed')) {
+        console.error('Tile is already revealed. Cannot reveal again.');
+        return;
+    }
     if (ws && ws.readyState === WebSocket.OPEN) {
-        // Construct and send a message to reveal a tile
-        // TODO: Maybe we don't need to send gameId here, will have to look into it
         const message = {
             action: 'RevealTile',
             coordinates: { x: x, y: y },
@@ -21,17 +24,50 @@ function RevealTiles(x, y) {
     }
 }
 
+function FlagTile(x, y, event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const tileElement = document.querySelector(`.grid > div[pos-x='${x}'][pos-y='${y}']`);
+    if (tileElement && tileElement.classList.contains('revealed')) {
+        console.error('Tile is already revealed. Cannot flag.');
+        return;
+    }
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        const message = {
+            action: 'ToggleFlagOnTile',
+            coordinates: { x: x, y: y },
+            gameId: gameId,
+        };
+        ws.send(JSON.stringify(message));
+        console.log('Flag message sent:', message);
+    } else {
+        console.error('WebSocket is not open. Cannot send flag message.');
+    }
+}
+
 // Handle incoming messages from the WebSocket server
 ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
     console.log('Message from server:', data);
     
     // Process messages based on their action type
-    // This is partly debug, not to stay forever only while in devel
-    if (data.action === 'updateTiles') {
+    if (data.action === 'UpdateTiles') {
         updateTiles(data.tiles); // Update the grid with revealed tiles
     } else if (data.action === 'DisplayMessage') {
         alert(data.data); // Show a message to the user
+    } else if (data.action == 'SetFlagState') {
+        const { x, y } = data.coordinates;
+        const tileElement = document.querySelector(`.grid > div[pos-x='${x}'][pos-y='${y}']`);
+        switch (data.flagged) {
+            case true:
+                tileElement.textContent = '🚩';
+                tileElement.classList.add('flagged');
+                break;
+            case false:
+                tileElement.textContent = '';
+                tileElement.classList.remove('flagged');
+                break;
+        }
     }
 };
 
@@ -39,7 +75,6 @@ ws.onmessage = (event) => {
 function updateTiles(tiles) {
     tiles.forEach((tile) => {
         const { x, y, value } = tile;
-        // Locate the corresponding tile element on the grid
         const tileElement = document.querySelector(`.grid > div[pos-x='${x}'][pos-y='${y}']`);
         if (tileElement) {
             switch (value) {

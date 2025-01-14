@@ -13,19 +13,23 @@
                 {% set y_loop = loop %} 
                 {% for cell in row %}
                     <div
-                        {% if cell.TileRevealed %} class="revealed" {% endif %}
+                        {% if cell.revealed %} class="revealed" {% endif %}
+                        {% if cell.flagged %} class="flagged" {% endif %}
                         onclick="RevealTiles({{ loop.index0 }}, {{ y_loop.index0 }})"
+                        oncontextmenu="FlagTile({{ loop.index0 }}, {{ y_loop.index0 }}, event)"
                         pos-y="{{ y_loop.index0 }}"
                         pos-x="{{ loop.index0 }}"
                     >
-                        {% if cell.TileRevealed %}
-                            {% if cell.BombsNear == 0 %}
+                        {% if cell.revealed %}
+                            {% if cell.value == 0 %}
                                 <!-- Blank for 0 -->
-                            {% elif cell.BombsNear == 9 %}
+                            {% elif cell.value == 9 %}
                                 💣
                             {% else %}
-                                {{ cell.BombsNear }}
+                                {{ cell.value }}
                             {% endif %}
+                        {% elif cell.flagged %}
+                            🚩
                         {% endif %}
                     </div>
                 {% endfor %} 

@@ -41,15 +41,25 @@ def lambda_handler(event, context):
                 "headers": {"Content-Type": "text/plain"},
                 "body": f"Game with gameId {game_id} not found.",
             }
+        
+        itm = dynamo_response["Item"]
 
-        board_state = dynamo_response["Item"]["currentBoardState"]
+        board_state = [
+            [
+                {"value": value, "revealed": revealed, "flagged": flagged}
+                for value, revealed, flagged in zip(row_values, row_revealed, row_flagged)
+            ]
+            for row_values, row_revealed, row_flagged in zip(
+                itm["boardValues"], itm["revealedTiles"], itm["flagPositions"]
+            )
+        ]
+        #print(board_state)
 
         # Fetch and render the Minesweeper template
         response = s3_client.get_object(Bucket=TEMPLATE_BUCKET_NAME, Key=template_key)
         template_content = response["Body"].read().decode("utf-8")
         template = Template(template_content)
         rendered_html = template.render(grid=board_state)
-
     else:
         # otherwise serve the Landing Page
         template_key = f"{TEMPLATE_FOLDER_NAME}/{LANDING_PAGE_FILE}"

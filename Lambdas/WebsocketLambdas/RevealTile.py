@@ -14,7 +14,6 @@ API_GATEWAY_ENDPOINT = os.environ["API_GATEWAY_ENDPOINT"]
 # Initialize API Gateway Management API client
 apigateway = boto3.client("apigatewaymanagementapi", endpoint_url=API_GATEWAY_ENDPOINT)
 
-
 def send_message(connection_id, message):
     """
     Send a JSON message to a specific WebSocket connection.
@@ -26,109 +25,39 @@ def send_message(connection_id, message):
     except apigateway.exceptions.GoneException:
         print(f"Connection {connection_id} is gone. Cleanup will happen separately.")
 
-
-# Convert DynamoDB board data to a Python-friendly format
-def convert_from_dynamodb(board_data):
+def reveal_surrounding_tiles(selected_x, selected_y, board_values, revealed_tiles, flag_positions):
     """
-    Convert DynamoDB format back to regular Python structure.
+    Reveal all tiles around a given tile.
     """
-    board = []
-    for row in board_data:
-        board_row = []
-        for tile in row["L"]:
-            board_row.append(
-                {
-                    "BombsNear": int(tile["M"]["BombsNear"]["N"]),
-                    "TileRevealed": tile["M"]["TileRevealed"]["BOOL"],
-                }
-            )
-        board.append(board_row)
-    return board
+    queue = [(selected_x, selected_y)]
+    newly_revealed_tiles = []
 
-
-# Reveal a tile and adjacent tiles using BFS
-def reveal_tile(board, start_x, start_y, visited):
-    """
-    Reveal a tile and all adjacent 0-tiles, standard Minesweeper reveal using BFS.
-    """
-    # All early exit conditions
-    if (
-        start_x < 0  # Out-of-bounds on x-axis
-        or start_y < 0  # Out-of-bounds on y-axis
-        or start_x >= len(board)  # Exceeds board's width
-        or start_y >= len(board[0])  # Exceeds board's height
-        or (start_x, start_y) in visited  # Already visited tile
-        or board[start_y][start_x]["TileRevealed"]  # Tile is already revealed
-    ):
-        return [], board
-
-    # Initialize queue with the starting tile and a list to track revealed tiles
-    queue = [(start_x, start_y)]
-    revealed_tiles = []
-
-    # Process tiles in the queue
     while queue:
-        # Dequeue the first tile
         x, y = queue.pop(0)
-
-        # Validate the current tile using same as early exit conditions
-        if (
-            x < 0
-            or y < 0
-            or x >= len(board)
-            or y >= len(board[0])
-            or (x, y) in visited
-            or board[y][x]["TileRevealed"]
-        ):
-            continue
-
-        # Reveal the current tile and add it to the visited set
-        board[y][x]["TileRevealed"] = True
-        bombs_near = board[y][x]["BombsNear"]
-
-        # Add the revealed tile's data to the list of revealed tiles
-        revealed_tiles.append({"x": x, "y": y, "value": bombs_near})
-        visited.add((x, y))
-
-        # If the current tile has 0 bombs nearby, enqueue its neighbors for further processing
-        if bombs_near == 0:
-            for dx, dy in [
-                (-1, -1),
-                (-1, 0),
-                (-1, 1),
-                (0, -1),
-                (0, 1),
-                (1, -1),
-                (1, 0),
-                (1, 1),
-            ]:
-                nx, ny = x + dx, y + dy
-                if (
-                    0 <= nx < len(board)  # check neighbor is within x-axis bounds
-                    and 0
-                    <= ny
-                    < len(board[0])  # check neighbor is within y-axis bounds
-                    and (nx, ny) not in visited  # check revisiting the same tile
-                ):
-                    queue.append((nx, ny))
-
-    # Return the list of revealed tiles and the updated board
-    return revealed_tiles, board
-
-
-# Save the updated board state to DynamoDB
-def save_board_state(game_id, board):
-    """
-    Write the updated board back to DynamoDB.
-    """
-    serialized_board = serializer.serialize(board)["L"]
-    dynamodb.update_item(
-        TableName=WEBSOCKET_TABLE,
-        Key={"gameId": {"S": game_id}},
-        UpdateExpression="SET currentBoardState = :board",
-        ExpressionAttributeValues={":board": {"L": serialized_board}},
-    )
-
+        newly_revealed_tiles.append((x, y))
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                new_x, new_y = x + dx, y + dy
+                # if tile is out of range skip
+                if not (0 <= new_x < len(board_values[0])) or not (0 <= new_y < len(board_values)):
+                    continue
+                # if tile is already revealed skip
+                if revealed_tiles[new_y][new_x] or (new_x, new_y) in newly_revealed_tiles:
+                    continue
+                # if tile is flagged skip
+                if flag_positions[new_y][new_x]:
+                    continue
+                # if tile is a bomb skip
+                if board_values[new_y][new_x] == 9:
+                    continue
+                # if tile is between 1 and 8 (inclusive) reveal it
+                if 0 < board_values[new_y][new_x] < 9:
+                    newly_revealed_tiles.append((new_x, new_y))
+                    continue
+                # in all other cases, get neighbor.
+                newly_revealed_tiles.append((new_x, new_y))
+                queue.append((new_x, new_y))
+    return newly_revealed_tiles
 
 def lambda_handler(event, context):
     """
@@ -137,61 +66,115 @@ def lambda_handler(event, context):
     body = json.loads(event["body"])
     game_id = body["gameId"]
     coords = body["coordinates"]
-    x, y = coords["x"], coords["y"]
+    selected_x, selected_y = coords["x"], coords["y"]
+
     connection_id = event["requestContext"]["connectionId"]
 
     # Fetch the game board from DynamoDB
     resp = dynamodb.get_item(TableName=WEBSOCKET_TABLE, Key={"gameId": {"S": game_id}})
-
-    # if the game does not exist or is concluded conditions checks
-    if "Item" not in resp or "currentBoardState" not in resp["Item"]:
+    if "Item" not in resp:
         print(f"Game {game_id} not found or has no board state.")
         return {"statusCode": 404, "body": json.dumps({"message": "Game not found"})}
-    elif resp["Item"]["gameConcluded"]["BOOL"]:
-        print(f"Game {game_id} has already concluded.")
+    elif resp['Item']["gameConcluded"]["BOOL"]:
         msg = {
             "action": "DisplayMessage",
-            "data": f"Game {game_id} has already concluded.",
+            "data": f"Game '{game_id}' has already concluded.",
         }
         send_message(connection_id, msg)
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"message": "Game has already concluded"}),
+        return {"statusCode": 400, "body": json.dumps({"message": "Game concluded"})}
+
+    itm = resp["Item"]
+    revealed_tiles = [
+        [val['BOOL'] for val in row["L"]]
+        for row in itm["revealedTiles"]["L"]
+    ]
+    flag_positions = [
+        [val['BOOL'] for val in row["L"]]
+        for row in itm["flagPositions"]["L"]
+    ]
+    board_values = [
+        [int(val['N']) for val in row["L"]] 
+        for row in itm["boardValues"]["L"]
+    ]
+    board_size = int(itm["boardSize"]["N"])
+    connections = [conn["S"] for conn in itm["connections"]["L"]]
+
+    # Validate the selected tile
+    if selected_x < 0 or selected_x >= board_size or selected_y < 0 or selected_y >= board_size:
+        msg = {"action": "DisplayMessage", "data": "Invalid tile selected"}
+        send_message(connection_id, msg)
+        return {"statusCode": 400, "body": json.dumps({"message": "Invalid tile selected"})}
+
+    if revealed_tiles[selected_y][selected_x]:
+        msg = {"action": "DisplayMessage", "data": "Tile already revealed"}
+        send_message(connection_id, msg)
+        return {"statusCode": 400, "body": json.dumps({"message": "Tile already revealed"})}
+
+    if flag_positions[selected_y][selected_x]:
+        msg = {"action": "DisplayMessage", "data": "Tile flagged, unflag tile to reveal it"}
+        send_message(connection_id, msg)
+        return {"statusCode": 400, "body": json.dumps({"message": "Tile flagged"})}
+
+    newly_revealed = []
+
+    # Handle bombs
+    if board_values[selected_y][selected_x] == 9:
+        newly_revealed = [
+            (x, y) for y in range(board_size) for x in range(board_size)
+            if not revealed_tiles[y][x]
+        ]
+        dynamodb.update_item(
+            TableName=WEBSOCKET_TABLE,
+            Key={"gameId": {"S": game_id}},
+            UpdateExpression="SET gameConcluded = :concluded",
+            ExpressionAttributeValues={
+                ":concluded": {"BOOL": True},
+            },
+        )
+        # TODO: Cleanup/move to bottom with others, have single point of notification
+        notification = {
+            "action": "UpdateTiles",
+            "tiles": [
+                {"x": x, "y": y, "value": board_values[y][x]} for x, y in newly_revealed
+            ]
         }
+        for conn_id in connections:
+            send_message(conn_id, notification)
 
-    # Otherwise convert table
-    current_board_state = resp["Item"]["currentBoardState"]["L"]
-    current_board_state = convert_from_dynamodb(current_board_state)
+        msg = {"action": "DisplayMessage", "data": f"Game '{game_id}' over!"}
+        send_message(connection_id, msg)
+        return {"statusCode": 200, "body": json.dumps({"message": "User selected bomb. Game over."})}
 
-    # Reveal necessary tiles and save board again
-    visited = set()
-    revealed_tiles, updated_board = reveal_tile(current_board_state, x, y, visited)
-    save_board_state(game_id, updated_board)
+    # Handle number tiles or empty tiles
+    if 0 < board_values[selected_y][selected_x] < 9:
+        newly_revealed.append((selected_x, selected_y))
+    else:
+        newly_revealed = reveal_surrounding_tiles(
+            selected_x, selected_y, board_values, revealed_tiles, flag_positions
+        )
 
-    # Inform all connections of the updated state of the game
-    connections = [conn["S"] for conn in resp["Item"]["connections"]["L"]]
-    msg = {"action": "updateTiles", "tiles": revealed_tiles}
-    for conn_id in connections:
-        send_message(conn_id, msg)
-
-    # If the tile selected was a 9 (bomb) then game over message displayed and DynamoDB updated
-    for revealed_tile in revealed_tiles:
-        if revealed_tile["value"] == 9:
-            dynamodb.update_item(
-                TableName=WEBSOCKET_TABLE,
-                Key={"gameId": {"S": game_id}},
-                UpdateExpression="SET gameConcluded = :concluded",
-                ExpressionAttributeValues={":concluded": {"BOOL": True}},
-            )
-            msg = {"action": "DisplayMessage", "data": f"Game {game_id} over!"}
-            for conn_id in connections:
-                send_message(conn_id, msg)
-            return {
-                "statusCode": 400,
-                "body": json.dumps({"message": "Game concluded"}),
-            }
-
-    return {
-        "statusCode": 200,
-        "body": json.dumps({"message": "Tiles revealed", "tiles": revealed_tiles}),
+    # Notify all connected clients
+    notification = {
+        "action": "UpdateTiles",
+        "tiles": [
+            {"x": x, "y": y, "value": board_values[y][x]} for x, y in newly_revealed
+        ]
     }
+    for conn_id in connections:
+        send_message(conn_id, notification)
+
+    # TODO: Make this only update the required tiles.
+    # Update revealed tiles in the database
+    for x, y in newly_revealed:
+        revealed_tiles[y][x] = True
+
+    # Batch update to DynamoDB
+    dynamodb.update_item(
+        TableName=WEBSOCKET_TABLE,
+        Key={"gameId": {"S": game_id}},
+        UpdateExpression="SET revealedTiles = :revealed",
+        ExpressionAttributeValues={":revealed": serializer.serialize(revealed_tiles)},
+    )
+
+
+    return {"statusCode": 200, "body": json.dumps({"message": "Completed successfully"})}

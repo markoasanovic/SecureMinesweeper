@@ -8,6 +8,7 @@ body {
     background-color: #f4f4f4;
     font-family: Arial, sans-serif;
 }
+
 .grid {
     display: grid;
     grid-template-columns: repeat(25, 20px);
@@ -17,12 +18,14 @@ body {
     padding: 10px;
     box-shadow: 0 0 20px rgba(0, 0, 255, 0.4);
 }
+
 .grid div {
     width: 20px;
     height: 20px;
     background-color: #7b7b7b;
     border-radius: 4px;
 }
+
 .grid div.revealed {
     background-color: #262626;
     color: #ffffff; 
@@ -44,4 +47,15 @@ body {
 .grid div.revealed:hover {
     background-color: #333333;
     cursor: default; 
+}
+
+.grid div.flagged {
+    background-color: #007200;
+    pointer-events: none;
+    cursor: default;
+}
+
+.grid div.flagged:hover {
+    background-color: #007200;
+    cursor: default;
 }
