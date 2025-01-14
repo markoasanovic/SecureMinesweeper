@@ -131,24 +131,21 @@ def lambda_handler(event, context):
                 ":concluded": {"BOOL": True},
             },
         )
-        # TODO: Cleanup/move to bottom with others, have single point of notification
+
+        # inform all clients that the game has ended
         notification = {
-            "action": "UpdateTiles",
-            "tiles": [
-                {"x": x, "y": y, "value": board_values[y][x]} for x, y in newly_revealed
-            ]
+            "action": "DisplayMessage",
+            "data": f"Game '{game_id}' has ended.",
         }
         for conn_id in connections:
             send_message(conn_id, notification)
 
-        msg = {"action": "DisplayMessage", "data": f"Game '{game_id}' over!"}
-        send_message(connection_id, msg)
-        return {"statusCode": 200, "body": json.dumps({"message": "User selected bomb. Game over."})}
-
     # Handle number tiles or empty tiles
     if 0 < board_values[selected_y][selected_x] < 9:
         newly_revealed.append((selected_x, selected_y))
-    else:
+
+    # Handle case of 0 cell being clicked (reveal surrounding tiles)
+    if board_values[selected_y][selected_x] == 0:
         newly_revealed = reveal_surrounding_tiles(
             selected_x, selected_y, board_values, revealed_tiles, flag_positions
         )
