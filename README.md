@@ -43,9 +43,9 @@ I would like to make this project deployable via CloudFormation to make deployme
    - If a bomb tile is selected then the game state will be set to complete, and no more interaction will be possible.
 
 ## Future goals
-~~1. Currently there is a bug where the grid will sometimes rotate, X,Y coordinates at swapped at some point.~~
-~~2. Joining an existing game is currently bugged, it can be joined via a URL but not via the portal.~~
-3. Create CloudFormation code to make deployment/portability easier.
+1. Create CloudFormation code to make deployment/portability easier.
+2. Resolve race conditions where multiple users making quick actions can cause their boards to be out of sync.
+3. Rework board structure again to improve overall performance.
 
 ## Contact
 For questions or support, reach out to Marko Asanovic at:
