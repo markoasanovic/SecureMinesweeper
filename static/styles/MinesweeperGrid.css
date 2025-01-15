@@ -27,7 +27,7 @@ body {
 }
 
 .grid div.revealed {
-    background-color: #262626;
+    background-color: #414141;
     color: #ffffff; 
     cursor: default; 
     display: flex; 
@@ -51,11 +51,10 @@ body {
 
 .grid div.flagged {
     background-color: #007200;
-    pointer-events: none;
     cursor: default;
 }
 
 .grid div.flagged:hover {
-    background-color: #007200;
+    background-color: #005600;
     cursor: default;
 }
